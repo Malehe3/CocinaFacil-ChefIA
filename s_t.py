@@ -1,4 +1,3 @@
-# main.py
 import streamlit as st
 import cv2
 import numpy as np
@@ -10,8 +9,6 @@ import glob
 from gtts import gTTS
 from googletrans import Translator
 from textblob import TextBlob
-import pandas as pd
-from streamlit_bokeh_events import streamlit_bokeh_events
 
 st.title("CocinaFacil - Tu Asistente de Cocina Personalizado")
 st.write(f"¡Hola! Soy ChefIA, tu asistente de cocina personal. Con solo una foto de una receta, puedo convertirla en texto para que puedas escuchar las instrucciones mientras cocinas y así evitar cualquier accidente.")
@@ -90,6 +87,4 @@ def remove_files(n):
                 os.remove(f)
 
 remove_files(7)
-
-
 
