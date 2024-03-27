@@ -9,7 +9,6 @@ import glob
 from gtts import gTTS
 from googletrans import Translator
 from textblob import TextBlob
-import pandas as pd
 
 st.title("CocinaFacil - Tu Asistente de Cocina Personalizado")
 st.write("¡Hola! Soy ChefIA, tu asistente de cocina personal. Puedes elegir entre dos opciones: tomar una foto de una receta para que te la traduzca y lea en voz alta, o escribir una frase para que te recomiende una receta basada en tus sentimientos.")
