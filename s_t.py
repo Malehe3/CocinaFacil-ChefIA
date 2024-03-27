@@ -30,6 +30,25 @@ if opcion == "Tomar Foto":
         st.write("Texto extraído de la imagen:")
         st.write(text)
 
+        # Función para convertir texto a audio
+        def text_to_speech(text, tld):
+            tts = gTTS(text, lang="es", tld=tld, slow=False)
+            try:
+                my_file_name = text[0:20]
+            except:
+                my_file_name = "audio"
+            tts.save(f"temp/{my_file_name}.mp3")
+            return my_file_name, text
+
+        # Botón para convertir texto a audio
+        if st.button("Convertir receta a audio"):
+            result, output_text = text_to_speech(text, "es")
+            audio_file = open(f"temp/{result}.mp3", "rb")
+            audio_bytes = audio_file.read()
+            st.audio(audio_bytes, format="audio/mp3", start_time=0)
+            st.markdown(f"## Receta:")
+            st.write(f" {output_text}")
+
 elif opcion == "Escribir Frase":
     st.write("Escribe una frase que describa tu día:")
     frase = st.text_input("Frase:")
@@ -57,25 +76,6 @@ elif opcion == "Escribir Frase":
             st.write("Nombre: Pasta con salsa de tomate y albahaca")
             # Añade los ingredientes y la preparación aquí
 
-# Función para convertir texto a audio
-def text_to_speech(text, tld):
-    tts = gTTS(text, lang="es", tld=tld, slow=False)
-    try:
-        my_file_name = text[0:20]
-    except:
-        my_file_name = "audio"
-    tts.save(f"temp/{my_file_name}.mp3")
-    return my_file_name, text
-
-# Botón para convertir texto a audio
-if st.button("Convertir receta a audio"):
-    result, output_text = text_to_speech(text, "es")
-    audio_file = open(f"temp/{result}.mp3", "rb")
-    audio_bytes = audio_file.read()
-    st.audio(audio_bytes, format="audio/mp3", start_time=0)
-    st.markdown(f"## Receta:")
-    st.write(f" {output_text}")
-
 # Limpieza de archivos temporales
 def remove_files(n):
     mp3_files = glob.glob("temp/*mp3")
@@ -87,4 +87,3 @@ def remove_files(n):
                 os.remove(f)
 
 remove_files(7)
-
