@@ -3,8 +3,9 @@ opencv-python-headless
 numpy
 pytesseract
 Pillow
-gtts
 googletrans==4.0.0-rc1
 textblob
-bokeh
-streamlit-bokeh-events
+pandas
+streamlit_bokeh_events
+gtts
+gTTS==2.2.2
