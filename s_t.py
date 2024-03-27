@@ -1,180 +1,124 @@
 import os
 import streamlit as st
-from bokeh.models.widgets import Button
-from bokeh.models import CustomJS
-from streamlit_bokeh_events import streamlit_bokeh_events
+import cv2
+import numpy as np
+import pytesseract
 from PIL import Image
 import time
 import glob
-
 from gtts import gTTS
 from googletrans import Translator
+from textblob import TextBlob
+import pandas as pd
+from bokeh.models.widgets import Button
+from bokeh.models import CustomJS
+from streamlit_bokeh_events import streamlit_bokeh_events
 
+# Función para eliminar archivos
+def remove_files(n):
+    mp3_files = glob.glob("temp/*mp3")
+    if len(mp3_files) != 0:
+        now = time.time()
+        n_days = n * 86400
+        for f in mp3_files:
+            if os.stat(f).st_mtime < now - n_days:
+                os.remove(f)
+
+# Título de la aplicación
 st.title("CocinaFacil - Tu Asistente de Cocina Personalizado")
 
-image = Image.open('RatitaChef3.png')
-st.image(image, width=200)
-
-st.write("¡Bienvenido a CocinaFacil con ChefIA, tu asistente de cocina personal! Aquí podrás narrar tus recetas para que otras personas hasta de diferentes partes del mundo, puedan conocer y disfrutar al máximo de tus creaciones culinarias.")
-
-st.subheader("Pulsa el botón y compártenos tu receta")
-
-stt_button = Button(label="Comienza", width=200, button_type="success")
-#Button(label="Comienza", width=200, button_type="success")
-
-stt_button.js_on_event("button_click", CustomJS(code="""
-    var recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onresult = function (e) {
-        var value = "";
-        for (var i = e.resultIndex; i < e.results.length; ++i) {
-            if (e.results[i].isFinal) {
-                value += e.results[i][0].transcript;
-            }
-        }
-        if ( value != "") {
-            document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: value}));
-        }
-    }
-    recognition.start();
-    """))
-
-result = streamlit_bokeh_events(
-    stt_button,
-    events="GET_TEXT",
-    key="listen",
-    refresh_on_update=False,
-    override_height=75,
-    debounce_time=0)
-
-if result:
-    if "GET_TEXT" in result:
-        st.subheader("Tu receta: ")
-        st.write(result.get("GET_TEXT"))
+# Función para convertir texto a audio
+def text_to_speech(text, tld):
+    tts = gTTS(text, lang="es", tld=tld, slow=False)
     try:
-        os.mkdir("temp")
+        my_file_name = text[0:20]
     except:
-        pass
+        my_file_name = "audio"
+    tts.save(f"temp/{my_file_name}.mp3")
+    return my_file_name, text
+
+# Función para convertir texto a audio con traducción
+def translate_and_text_to_speech(text, input_language, output_language, tld):
     translator = Translator()
+    translation = translator.translate(text, src=input_language, dest=output_language)
+    trans_text = translation.text
+    tts = gTTS(trans_text, lang=output_language, tld=tld, slow=False)
+    try:
+        my_file_name = text[0:20]
+    except:
+        my_file_name = "audio"
+    tts.save(f"temp/{my_file_name}.mp3")
+    return my_file_name, trans_text
 
-    text = str(result.get("GET_TEXT"))
-    in_lang = st.selectbox(
-        "Elige el idioma en el que compartiste tu receta",
-        ("Inglés", "Español", "Alemán", "Francés", "Bengalí", "Coreano", "Mandarín", "Japonés"),
-    )
-    if in_lang == "Inglés":
-        input_language = "en"
-    elif in_lang == "Español":
-        input_language = "es"
-    elif in_lang == "Alemán":
-        input_language = "de"
-    elif in_lang == "Francés":
-        input_language = "fr"
-    elif in_lang == "Bengalí":
-        input_language = "bn"
-    elif in_lang == "Coreano":
-        input_language = "ko"
-    elif in_lang == "Mandarín":
-        input_language = "zh-cn"
-    elif in_lang == "Japonés":
-        input_language = "ja"
+# Función para analizar sentimientos y recomendar recetas
+def recommend_recipe(text):
+    blob = TextBlob(text)
+    polarity = blob.sentiment.polarity
+    if polarity >= 0.5:
+        recipe_name = "Ensalada de quinoa con aguacate, tomate y aderezo de limón"
+        ingredients = ["1 taza de quinoa cocida", "1 aguacate maduro, cortado en cubitos", "1 tomate grande, cortado en cubitos", "Zumo de 1 limón", "Sal y pimienta al gusto", "Hojas de lechuga (opcional)"]
+        steps = ["En un tazón grande, mezcla la quinoa cocida, el aguacate y el tomate.", "Exprime el zumo de limón sobre la ensalada y sazona con sal y pimienta al gusto.", "Opcionalmente, sirve sobre hojas de lechuga."]
+    elif polarity <= -0.5:
+        recipe_name = "Sopa de verduras reconfortante"
+        ingredients = ["2 zanahorias, cortadas en rodajas", "2 ramas de apio, picadas", "1 cebolla, picada", "2 dientes de ajo, picados", "1 papa grande, pelada y cortada en cubos", "4 tazas de caldo de verduras", "Sal y pimienta al gusto", "Perejil fresco picado (opcional, para decorar)"]
+        steps = ["En una olla grande, saltea la cebolla y el ajo en un poco de aceite hasta que estén dorados.", "Agrega las zanahorias, el apio y la papa, y cocina por unos minutos.", "Vierte el caldo de verduras, lleva a ebullición y luego reduce el fuego. Cocina a fuego lento hasta que las verduras estén tiernas.", "Sazona con sal y pimienta al gusto.", "Sirve caliente, decorado con perejil fresco si lo deseas."]
+    else:
+        recipe_name = "Pasta con salsa de tomate y albahaca"
+        ingredients = ["250g de pasta de tu elección", "2 tazas de salsa de tomate", "Un puñado de hojas de albahaca fresca", "Sal y pimienta al gusto", "Queso parmesano rallado (opcional, para servir)"]
+        steps = ["Cocina la pasta según las instrucciones del paquete hasta que esté al dente. Escurre y reserva.", "Calienta la salsa de tomate en una sartén grande.", "Agrega las hojas de albahaca picadas y sazona con sal y pimienta al gusto.", "Incorpora la pasta cocida a la salsa y mezcla bien.", "Sirve caliente, con queso parmesano rallado si lo deseas."]
+    return recipe_name, ingredients, steps
 
-    out_lang = st.selectbox(
-        "Elige el idioma en el que quieres compartartir tu receta",
-        ("Inglés", "Español", "Alemán", "Francés", "Bengalí", "Coreano", "Mandarín", "Japonés"),
-    )
-    if out_lang == "Inglés":
-        output_language = "en"
-    elif out_lang == "Español":
-        output_language = "es"
-    elif out_lang == "Alemán":
-        output_language = "de"
-    elif out_lang == "Francés":
-        output_language = "fr"
-    elif out_lang == "Bengalí":
-        output_language = "bn"
-    elif out_lang == "Coreano":
-        output_language = "ko"
-    elif out_lang == "Mandarín":
-        output_language = "zh-cn"
-    elif out_lang == "Japonés":
-        output_language = "ja"
+# Interfaz de usuario para la conversión de imagen a texto y audio
+st.subheader("Convertir receta de imagen a audio:")
+img_file_buffer = st.file_uploader("Sube una foto de la receta")
 
-    english_accent = st.selectbox(
-        "Elige un acento",
-        (
-            "Defecto",
-            "Español",
-            "Reino Unido",
-            "Estados Unidos",
-            "Canada",
-            "Australia",
-            "Irlanda",
-            "Sudáfrica",
-        ),
-    )
+if img_file_buffer is not None:
+    bytes_data = img_file_buffer.getvalue()
+    img = Image.open(img_file_buffer)
+    st.image(img, caption='Imagen subida', use_column_width=True)
+    
+    text = pytesseract.image_to_string(img)
+    st.write("Texto extraído de la imagen:")
+    st.write(text)
 
-    if english_accent == "Defecto":
-        tld = "com"
-    elif english_accent == "Español":
-        tld = "com.mx"
-    elif english_accent == "Reino Unido":
-        tld = "co.uk"
-    elif english_accent == "Estados Unidos":
-        tld = "com"
-    elif english_accent == "Canada":
-        tld = "ca"
-    elif english_accent == "Australia":
-        tld = "com.au"
-    elif english_accent == "Irlanda":
-        tld = "ie"
-    elif english_accent == "Sudáfrica":
-        tld = "co.za"
-
-
-    def text_to_speech(input_language, output_language, text, tld):
-        translation = translator.translate(text, src=input_language, dest=output_language)
-        trans_text = translation.text
-        tts = gTTS(trans_text, lang=output_language, tld=tld, slow=False)
-        try:
-            my_file_name = text[0:20]
-        except:
-            my_file_name = "audio"
-        tts.save(f"temp/{my_file_name}.mp3")
-        return my_file_name, trans_text
-
-
-    display_output_text = st.checkbox("Mostrar el texto")
-
-    if st.button("Aceptar"):
-        result, output_text = text_to_speech(input_language, output_language, text, tld)
+    if st.button("Convertir receta a audio"):
+        result, output_text = text_to_speech(text, "es")
         audio_file = open(f"temp/{result}.mp3", "rb")
         audio_bytes = audio_file.read()
-        st.markdown(f"## Tú audio:")
         st.audio(audio_bytes, format="audio/mp3", start_time=0)
-
-        if display_output_text:
-            st.write(f"### Ahora puedes compartir tu receta con más personas")
-            st.write(f" {output_text}")
-
-
-    def remove_files(n):
-        mp3_files = glob.glob("temp/*mp3")
-        if len(mp3_files) != 0:
-            now = time.time()
-            n_days = n * 86400
-            for f in mp3_files:
-                if os.stat(f).st_mtime < now - n_days:
-                    os.remove(f)
-                    print("Deleted ", f)
+        st.markdown("## Receta:")
+        st.write(output_text)
 
     remove_files(7)
-    st.subheader("¡Ayúdanos a mejorar tu experiencia! Por favor, califica CocinaFacil:")
-    calificacion = st.slider("Califica de 1 a 5 estrellas", 1, 5)
 
-    if calificacion:
-        st.write(f"¡Gracias por tu calificación de {calificacion} estrellas!")
+# Interfaz de usuario para describir el estado de ánimo y recomendar una receta
+st.subheader("Describir tu día y obtener una recomendación de receta:")
+with st.expander('Analizar frase'):
+    text = st.text_input('Escribe por favor: ')
+    if text:
+        blob = TextBlob(text)
+        polarity = blob.sentiment.polarity
+        subjectivity = blob.sentiment.subjectivity
+        st.write('Polarity: ', round(polarity, 2))
+        st.write('Subjectivity: ', round(subjectivity, 2))
+        if polarity >= 0.5:
+            st.write('Es un sentimiento Positivo 😊')
+        elif polarity <= -0.5:
+            st.write('Es un sentimiento Negativo 😔')
+        else:
+            st.write('Es un sentimiento Neutral 😐')
 
+        if st.button("Obtener recomendación de receta"):
+            recipe_name, ingredients, steps = recommend_recipe(text)
+            st.subheader("Receta recomendada:")
+            st.write(f"Nombre: {recipe            _name}")
+            st.write("Ingredientes:")
+            for ingredient in ingredients:
+                st.write(f"- {ingredient}")
+            st.write("Pasos:")
+            for i, step in enumerate(steps, start=1):
+                st.write(f"{i}. {step}")
+
+# Eliminar archivos antiguos
+remove_files(7)
 
