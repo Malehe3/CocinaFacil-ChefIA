@@ -1,3 +1,4 @@
+# main.py
 import streamlit as st
 import cv2
 import numpy as np
@@ -9,151 +10,86 @@ import glob
 from gtts import gTTS
 from googletrans import Translator
 from textblob import TextBlob
-from bokeh.models.widgets import Button
-from bokeh.models import CustomJS
+import pandas as pd
 from streamlit_bokeh_events import streamlit_bokeh_events
 
-# Función para tomar una foto y traducirla
-def take_photo_and_translate():
-    st.title("CocinaFacil - Tomar una Foto y Traducir")
-    st.write("¡Hola! Por favor, toma una foto de la receta que deseas traducir.")
-    
-    img_file_buffer = st.file_uploader("Carga una imagen", type=["jpg", "jpeg", "png"])
+st.title("CocinaFacil - Tu Asistente de Cocina Personalizado")
+st.write(f"¡Hola! Soy ChefIA, tu asistente de cocina personal. Con solo una foto de una receta, puedo convertirla en texto para que puedas escuchar las instrucciones mientras cocinas y así evitar cualquier accidente.")
+
+# Opción para tomar una foto o escribir una frase
+opcion = st.radio("Selecciona una opción:", ("Tomar Foto", "Escribir Frase"))
+
+if opcion == "Tomar Foto":
+    st.write("Por favor, toma una foto de la receta:")
+    img_file_buffer = st.camera_input("Tomar Foto")
 
     if img_file_buffer is not None:
-        bytes_data = img_file_buffer.read()
-        nparr = np.frombuffer(bytes_data, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        bytes_data = img_file_buffer.getvalue()
+        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+        cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+        st.image(cv2_img, channels="RGB")
 
-        st.image(img, caption="Imagen cargada", use_column_width=True)
-
-        with st.spinner("Procesando imagen..."):
-            text = pytesseract.image_to_string(img)
-
-        st.subheader("Texto extraído de la imagen:")
+        text = pytesseract.image_to_string(cv2_img)
+        st.write("Texto extraído de la imagen:")
         st.write(text)
 
+elif opcion == "Escribir Frase":
+    st.write("Escribe una frase que describa tu día:")
+    frase = st.text_input("Frase:")
+
+    if frase:
         translator = Translator()
-        in_lang = st.selectbox(
-            "Elige el idioma de origen:",
-            ("Auto", "Inglés", "Español", "Alemán", "Francés", "Italiano")
-        )
-
-        if in_lang == "Auto":
-            in_lang = None
-        elif in_lang == "Inglés":
-            in_lang = "en"
-        elif in_lang == "Español":
-            in_lang = "es"
-        elif in_lang == "Alemán":
-            in_lang = "de"
-        elif in_lang == "Francés":
-            in_lang = "fr"
-        elif in_lang == "Italiano":
-            in_lang = "it"
-
-        out_lang = st.selectbox(
-            "Elige el idioma de destino:",
-            ("Inglés", "Español", "Alemán", "Francés", "Italiano")
-        )
-
-        if out_lang == "Inglés":
-            out_lang = "en"
-        elif out_lang == "Español":
-            out_lang = "es"
-        elif out_lang == "Alemán":
-            out_lang = "de"
-        elif out_lang == "Francés":
-            out_lang = "fr"
-        elif out_lang == "Italiano":
-            out_lang = "it"
-
-        translated_text = translator.translate(text, src=in_lang, dest=out_lang).text
-
-        st.subheader("Texto traducido:")
-        st.write(translated_text)
-
-        # Función para convertir texto a audio
-        def text_to_speech(text):
-            tts = gTTS(text, lang=out_lang)
-            try:
-                file_name = "translated_audio.mp3"
-            except:
-                file_name = "translated_audio.mp3"
-            tts.save(file_name)
-            return file_name
-
-        # Botón para convertir texto a audio
-        if st.button("Convertir a audio"):
-            audio_file_name = text_to_speech(translated_text)
-            audio_file = open(audio_file_name, "rb")
-            audio_bytes = audio_file.read()
-            st.audio(audio_bytes, format="audio/mp3", start_time=0)
-            st.markdown("## Audio generado:")
-            st.write(f" [Escuchar audio](./{audio_file_name})")
-
-        os.remove("translated_audio.mp3")
-
-# Función para escribir una frase y analizar sentimientos
-def write_phrase_and_analyze_sentiment():
-    st.title("CocinaFacil - Analizar Sentimientos")
-    st.write("¡Hola! Por favor, escribe una frase para analizar tu estado de ánimo.")
-
-    phrase = st.text_input("Escribe tu frase:")
-
-    if phrase:
-        translator = Translator()
-        translation = translator.translate(phrase, src="es", dest="en")
+        translation = translator.translate(frase, src="es", dest="en")
         trans_text = translation.text
         blob = TextBlob(trans_text)
-        polarity = blob.sentiment.polarity
+        polarity = round(blob.sentiment.polarity, 2)
 
         if polarity >= 0.5:
             st.write("¡Es un sentimiento positivo! 😊")
-            st.write("¡Te recomendamos probar esta receta positiva!")
+            st.subheader("¡Te recomendamos probar esta receta positiva!")
             st.write("Nombre: Ensalada de quinoa con aguacate, tomate y aderezo de limón")
-            st.write("- 1 taza de quinoa cocida")
-            st.write("- 1 aguacate maduro, cortado en cubitos")
-            st.write("- 1 tomate grande, cortado en cubitos")
-            st.write("- Zumo de 1 limón")
-            st.write("- Sal y pimienta al gusto")
-            st.write("- Hojas de lechuga (opcional)")
+            # Añade los ingredientes y la preparación aquí
         elif polarity <= -0.5:
             st.write("¡Es un sentimiento negativo! 😔")
-            st.write("¡Te recomendamos probar esta receta reconfortante!")
+            st.subheader("¡Te recomendamos probar esta receta reconfortante!")
             st.write("Nombre: Sopa de verduras reconfortante")
-            st.write("- 2 zanahorias, cortadas en rodajas")
-            st.write("- 2 ramas de apio, picadas")
-            st.write("- 1 cebolla, picada")
-            st.write("- 2 dientes de ajo, picados")
-            st.write("- 1 papa grande, pelada y cortada en cubos")
-            st.write("- 4 tazas de caldo de verduras")
-            st.write("- Sal y pimienta al gusto")
-            st.write("- Perejil fresco picado (opcional, para decorar)")
+            # Añade los ingredientes y la preparación aquí
         else:
             st.write("¡Es un sentimiento neutral! 😐")
-            st.write("¡Te recomendamos probar esta receta!")
+            st.subheader("¡Te recomendamos probar esta receta!")
             st.write("Nombre: Pasta con salsa de tomate y albahaca")
-            st.write("- 250g de pasta de tu elección")
-            st.write("- 2 tazas de salsa de tomate")
-            st.write("- Un puñado de hojas de albahaca fresca")
-            st.write("- Sal y pimienta al gusto")
-            st.write("- Queso parmesano rallado (opcional, para servir)")
+            # Añade los ingredientes y la preparación aquí
 
-# Función principal
-def main():
-    st.title("CocinaFacil - Tu Asistente de Cocina Personalizado")
-    st.write("¡Bienvenido a CocinaFacil con ChefIA, tu asistente de cocina personal!")
-    
-    option = st.selectbox("Elige una opción:", ("Tomar una foto y traducir", "Escribir una frase y analizar sentimientos"))
+# Función para convertir texto a audio
+def text_to_speech(text, tld):
+    tts = gTTS(text, lang="es", tld=tld, slow=False)
+    try:
+        my_file_name = text[0:20]
+    except:
+        my_file_name = "audio"
+    tts.save(f"temp/{my_file_name}.mp3")
+    return my_file_name, text
 
-    if option == "Tomar una foto y traducir":
-        take_photo_and_translate()
-    elif option == "Escribir una frase y analizar sentimientos":
-        write_phrase_and_analyze_sentiment()
+# Botón para convertir texto a audio
+if st.button("Convertir receta a audio"):
+    result, output_text = text_to_speech(text, "es")
+    audio_file = open(f"temp/{result}.mp3", "rb")
+    audio_bytes = audio_file.read()
+    st.audio(audio_bytes, format="audio/mp3", start_time=0)
+    st.markdown(f"## Receta:")
+    st.write(f" {output_text}")
 
-# Llamar a la función principal
-if __name__ == "__main__":
-    main()
+# Limpieza de archivos temporales
+def remove_files(n):
+    mp3_files = glob.glob("temp/*mp3")
+    if len(mp3_files) != 0:
+        now = time.time()
+        n_days = n * 86400
+        for f in mp3_files:
+            if os.stat(f).st_mtime < now - n_days:
+                os.remove(f)
+
+remove_files(7)
+
 
 
