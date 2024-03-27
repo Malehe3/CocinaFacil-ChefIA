@@ -111,7 +111,7 @@ with st.expander('Analizar frase'):
         if st.button("Obtener recomendación de receta"):
             recipe_name, ingredients, steps = recommend_recipe(text)
             st.subheader("Receta recomendada:")
-            st.write(f"Nombre: {recipe            _name}")
+            st.write(f"Nombre: {recipe_name}")
             st.write("Ingredientes:")
             for ingredient in ingredients:
                 st.write(f"- {ingredient}")
