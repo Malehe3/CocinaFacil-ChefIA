@@ -1,8 +1,10 @@
 streamlit
-opencv-python
-pytesseract
-gtts==2.2.2
-googletrans==3.1.0a0
-textblob
-Pillow
+opencv-python-headless
 numpy
+pytesseract
+Pillow
+gtts
+googletrans==4.0.0-rc1
+textblob
+bokeh
+streamlit-bokeh-events
